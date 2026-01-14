@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 
 export default function AdminPage() {
     const [data, setData] = useState<{ users: any[], profiles: any[] }>({ users: [], profiles: [] });
-    const [twilioEnabled, setTwilioEnabled] = useState(true);
+    const [twilioEnabled, setTwilioEnabled] = useState(false);
     const [registrationOpen, setRegistrationOpen] = useState(true);
     const [registrationStartDate, setRegistrationStartDate] = useState('');
     const [registrationEndDate, setRegistrationEndDate] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [message, setMessage] = useState('');
     const [activeTab, setActiveTab] = useState<'registered_users' | 'user_profiles'>('registered_users');
 
     useEffect(() => {
@@ -58,16 +58,13 @@ export default function AdminPage() {
                 if (key === 'registrationStartDate') setRegistrationStartDate(value);
                 if (key === 'registrationEndDate') setRegistrationEndDate(value);
 
-                setMessage('Settings updated successfully!');
-                setTimeout(() => setMessage(''), 3000);
+                toast.success('Settings updated successfully!');
             } else {
-                setMessage(`Error: ${result.error || 'Failed to update settings'}`);
-                setTimeout(() => setMessage(''), 3000);
+                toast.error(`Error: ${result.error || 'Failed to update settings'}`);
             }
         } catch (error) {
             console.error('Error updating settings:', error);
-            setMessage('Error updating settings');
-            setTimeout(() => setMessage(''), 3000);
+            toast.error('Error updating settings');
         }
     };
 
@@ -75,8 +72,7 @@ export default function AdminPage() {
         if (startDate && endDate) {
             fetchData(startDate, endDate);
         } else {
-            setMessage('Please select both start and end dates');
-            setTimeout(() => setMessage(''), 3000);
+            toast.error('Please select both start and end dates');
         }
     };
 
@@ -141,11 +137,6 @@ export default function AdminPage() {
 
             {/* Main Content */}
             <div className="flex-1 p-8 overflow-y-auto">
-                {message && (
-                    <div className={`mb-4 p-4 rounded ${message.startsWith('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                        {message}
-                    </div>
-                )}
 
                 {/* Settings Section */}
                 <div className="bg-white p-6 rounded-lg shadow-md mb-8">

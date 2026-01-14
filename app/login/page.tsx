@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -10,7 +11,6 @@ export default function LoginPage() {
         mobile: '',
         password: ''
     });
-    const [error, setError] = useState('');
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -18,7 +18,6 @@ export default function LoginPage() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
 
         try {
             const res = await fetch('/api/auth/login', {
@@ -33,7 +32,7 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error);
+                toast.error(data.error);
                 return;
             }
 
@@ -44,7 +43,7 @@ export default function LoginPage() {
                 router.push('/dashboard');
             }
         } catch (err) {
-            setError('Something went wrong');
+            toast.error('Something went wrong');
         }
     };
 
@@ -52,8 +51,6 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-md w-96">
                 <h1 className="text-2xl font-bold mb-6 text-center text-black">Login</h1>
-
-                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div>

@@ -10,7 +10,7 @@ interface Settings {
 const SETTINGS_FILE = 'settings.xlsx';
 
 const DEFAULT_SETTINGS: Settings = {
-    twilioEnabled: true, // Default to enabled
+    twilioEnabled: false, // Default to disabled
     registrationOpen: true,
     registrationStartDate: '',
     registrationEndDate: '',

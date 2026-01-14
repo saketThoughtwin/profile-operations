@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 export default function SignupPage() {
     const router = useRouter();
@@ -13,8 +14,6 @@ export default function SignupPage() {
         mobile: '',
         otp: ''
     });
-    const [error, setError] = useState('');
-    const [message, setMessage] = useState('');
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,8 +21,6 @@ export default function SignupPage() {
 
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setMessage('');
 
         try {
             const res = await fetch('/api/auth/signup/send-otp', {
@@ -39,28 +36,27 @@ export default function SignupPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error);
+                toast.error(data.error);
                 return;
             }
 
             // Check if Twilio is enabled
             if (data.twilioEnabled === false) {
+                toast.success('Registration successful!');
                 // Direct registration success (Auto-login)
                 router.push('/dashboard');
             } else {
                 // OTP flow
-                setMessage(data.message || 'OTP Sent!');
+                toast.success(data.message || 'OTP Sent!');
                 setStep('otp');
             }
         } catch (err) {
-            setError('Something went wrong');
+            toast.error('Something went wrong');
         }
     };
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setMessage('');
 
         try {
             const res = await fetch('/api/auth/signup/verify-otp', {
@@ -75,14 +71,15 @@ export default function SignupPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error);
+                toast.error(data.error);
                 return;
             }
 
+            toast.success('Registration successful!');
             // Auto-login success
             router.push('/dashboard');
         } catch (err) {
-            setError('Something went wrong');
+            toast.error('Something went wrong');
         }
     };
 
@@ -90,9 +87,6 @@ export default function SignupPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-md w-96">
                 <h1 className="text-2xl font-bold mb-6 text-center text-black">Sign Up</h1>
-
-                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                {message && <p className="text-green-500 text-sm mb-4">{message}</p>}
 
                 {step === 'details' ? (
                     <form onSubmit={handleSendOtp} className="space-y-4">
