@@ -1,5 +1,6 @@
 'use client';
 
+import { generateProfilesPdf } from '@/lib/generateProfilesPdf';
 import { useEffect, useState } from 'react';
 
 export default function AdminPage() {
@@ -234,6 +235,15 @@ export default function AdminPage() {
                     </div>
                 </div>
             </div>
+            <div className="flex justify-end mt-6">
+                <button
+                    onClick={() => generateProfilesPdf(data.profiles)}
+                    className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition"
+                >
+                    Generate PDF
+                </button>
+            </div>
+
         </div>
     );
 }
