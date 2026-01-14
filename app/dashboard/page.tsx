@@ -166,7 +166,7 @@ export default function DashboardPage() {
                                 value={formData.fatherName}
                                 onChange={handleChange}
                                 required
-                                className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                                className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                             />
                         </div>
                         <div>
@@ -177,7 +177,7 @@ export default function DashboardPage() {
                                 value={formData.motherName}
                                 onChange={handleChange}
                                 required
-                                className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                                className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                             />
                         </div>
                         <div>
@@ -188,7 +188,7 @@ export default function DashboardPage() {
                                 value={formData.fatherOccupation}
                                 onChange={handleChange}
                                 required
-                                className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                                className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                             />
                         </div>
                         <div>
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                                 value={formData.motherOccupation}
                                 onChange={handleChange}
                                 required
-                                className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                                className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                             />
                         </div>
                     </div>
@@ -212,7 +212,7 @@ export default function DashboardPage() {
                             value={formData.dob}
                             onChange={handleChange}
                             required
-                            className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                            className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                         />
                     </div>
 
@@ -224,7 +224,7 @@ export default function DashboardPage() {
                             value={formData.education}
                             onChange={handleChange}
                             required
-                            className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                            className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                         />
                     </div>
 
@@ -236,14 +236,29 @@ export default function DashboardPage() {
                             onChange={handleChange}
                             required
                             rows={3}
-                            className="mt-1 block w-full border-gray-600 p-2 rounded text-gray-900"
+                            className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
                             placeholder="Enter your complete address"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-900">Picture</label>
-                        <input name="picture" type="file" accept="image/*" required className="mt-1 block w-full text-gray-900" />
+                        <label className="block text-sm font-medium text-gray-900 mb-1">Picture</label>
+                        <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block">
+                            Upload Picture
+                            <input
+                                name="picture"
+                                type="file"
+                                accept="image/*"
+                                required
+                                className="hidden"
+                                onChange={(e) => {
+                                    // Optional: Show selected filename
+                                    if (e.target.files && e.target.files[0]) {
+                                        alert(`Selected: ${e.target.files[0].name}`);
+                                    }
+                                }}
+                            />
+                        </label>
                     </div>
 
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">

@@ -16,7 +16,7 @@ export default function AdminPage() {
     useEffect(() => {
         fetchData();
         fetchSettings();
-    }, []);
+    }, [activeTab]);
 
     const fetchData = (start?: string, end?: string) => {
         let url = '/api/admin/data';
@@ -200,7 +200,7 @@ export default function AdminPage() {
                                     type="date"
                                     value={registrationStartDate}
                                     onChange={(e) => updateSetting('registrationStartDate', e.target.value)}
-                                    className="border border-gray-300 rounded px-3 py-2 w-full"
+                                    className="border-2 border-black rounded px-3 py-2 w-full"
                                 />
                             </div>
                             <div>
@@ -209,7 +209,7 @@ export default function AdminPage() {
                                     type="date"
                                     value={registrationEndDate}
                                     onChange={(e) => updateSetting('registrationEndDate', e.target.value)}
-                                    className="border border-gray-300 rounded px-3 py-2 w-full"
+                                    className="border-2 border-black rounded px-3 py-2 w-full"
                                 />
                             </div>
                         </div>
@@ -229,7 +229,7 @@ export default function AdminPage() {
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="border border-gray-300 rounded px-3 py-2"
+                                className="border-2 border-black rounded px-3 py-2"
                             />
                         </div>
                         <div>
@@ -238,7 +238,7 @@ export default function AdminPage() {
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="border border-gray-300 rounded px-3 py-2"
+                                className="border-2 border-black rounded px-3 py-2"
                             />
                         </div>
                         <div className="flex gap-2 mt-6">

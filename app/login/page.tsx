@@ -51,7 +51,7 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-100">
             <div className="bg-white p-8 rounded-lg shadow-md w-96">
-                <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
+                <h1 className="text-2xl font-bold mb-6 text-center text-black">Login</h1>
 
                 {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
@@ -64,7 +64,7 @@ export default function LoginPage() {
                             value={formData.mobile}
                             onChange={handleChange}
                             required
-                            className="mt-1 block w-full rounded-md border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 text-gray-900 placeholder-gray-500"
+                            className="mt-1 block w-full rounded-md border-2 border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 text-gray-900 placeholder-gray-500"
                         />
                     </div>
                     <div>
@@ -75,7 +75,7 @@ export default function LoginPage() {
                             value={formData.password}
                             onChange={handleChange}
                             required
-                            className="mt-1 block w-full rounded-md border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 text-gray-900 placeholder-gray-500"
+                            className="mt-1 block w-full rounded-md border-2 border-black shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 text-gray-900 placeholder-gray-500"
                         />
                     </div>
                     <button

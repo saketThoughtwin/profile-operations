@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { readExcel } from '@/lib/excel';
 import { cookies } from 'next/headers';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         const sessionCookie = (await cookies()).get('user_session');
@@ -30,7 +32,12 @@ export async function GET(request: Request) {
             });
         }
 
-        return NextResponse.json({ users, profiles });
+        return new NextResponse(JSON.stringify({ users, profiles }), {
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store, max-age=0',
+            },
+        });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
