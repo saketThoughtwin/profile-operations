@@ -2,12 +2,18 @@ import { readExcel, writeExcel } from './excel';
 
 interface Settings {
     twilioEnabled: boolean;
+    registrationOpen: boolean;
+    registrationStartDate: string;
+    registrationEndDate: string;
 }
 
 const SETTINGS_FILE = 'settings.xlsx';
 
 const DEFAULT_SETTINGS: Settings = {
     twilioEnabled: true, // Default to enabled
+    registrationOpen: true,
+    registrationStartDate: '',
+    registrationEndDate: '',
 };
 
 /**
@@ -27,6 +33,12 @@ export const getSettings = (): Settings => {
         data.forEach((row: any) => {
             if (row.key === 'twilioEnabled') {
                 settings.twilioEnabled = row.value === 'true' || row.value === true;
+            } else if (row.key === 'registrationOpen') {
+                settings.registrationOpen = row.value === 'true' || row.value === true;
+            } else if (row.key === 'registrationStartDate') {
+                settings.registrationStartDate = row.value;
+            } else if (row.key === 'registrationEndDate') {
+                settings.registrationEndDate = row.value;
             }
         });
 

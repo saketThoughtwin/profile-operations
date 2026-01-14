@@ -75,7 +75,13 @@ export const writeExcelSheet = (fileName: string, sheetName: string, data: any[]
     }
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    fs.writeFileSync(filePath, buffer);
+    try {
+        fs.writeFileSync(filePath, buffer);
+        console.log(`Successfully wrote to ${filePath}`);
+    } catch (error) {
+        console.error(`Error writing to ${filePath}:`, error);
+        throw error;
+    }
 };
 
 /**

@@ -7,6 +7,8 @@ export default function DashboardPage() {
     const router = useRouter();
     const [message, setMessage] = useState('');
     const [userName, setUserName] = useState('User');
+    const [accessDenied, setAccessDenied] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({
         fatherName: '',
         motherName: '',
@@ -18,36 +20,71 @@ export default function DashboardPage() {
     });
 
     useEffect(() => {
-        // Get user name from cookie
-        const cookies = document.cookie.split(';');
-        const sessionCookie = cookies.find(c => c.trim().startsWith('user_session='));
-        if (sessionCookie) {
-            try {
-                const sessionData = JSON.parse(decodeURIComponent(sessionCookie.split('=')[1]));
-                setUserName(sessionData.name || 'User');
-            } catch (e) {
-                console.error('Error parsing session:', e);
-            }
-        }
-
-        // Fetch profile data
-        fetch('/api/user/profile')
-            .then(res => res.json())
-            .then(data => {
-                if (data && !data.error && Object.keys(data).length > 0) {
-                    setFormData({
-                        fatherName: data.fatherName || '',
-                        motherName: data.motherName || '',
-                        fatherOccupation: data.fatherOccupation || '',
-                        motherOccupation: data.motherOccupation || '',
-                        dob: data.dob || '',
-                        education: data.education || '',
-                        address: data.address || ''
-                    });
-                }
-            })
-            .catch(console.error);
+        checkAccessAndFetchData();
     }, []);
+
+    const checkAccessAndFetchData = async () => {
+        try {
+            // Check settings first
+            const settingsRes = await fetch('/api/admin/settings');
+            const settings = await settingsRes.json();
+
+            if (settings) {
+                const { registrationOpen, registrationStartDate, registrationEndDate } = settings;
+                const today = new Date().toISOString().split('T')[0];
+
+                let isOpen = registrationOpen;
+
+                if (isOpen && registrationStartDate && registrationEndDate) {
+                    if (today < registrationStartDate || today > registrationEndDate) {
+                        isOpen = false;
+                    }
+                } else if (isOpen && registrationStartDate) {
+                    if (today < registrationStartDate) isOpen = false;
+                } else if (isOpen && registrationEndDate) {
+                    if (today > registrationEndDate) isOpen = false;
+                }
+
+                if (!isOpen) {
+                    setAccessDenied(true);
+                    setLoading(false);
+                    return; // Stop execution if access is denied
+                }
+            }
+
+            // Get user name from cookie
+            const cookies = document.cookie.split(';');
+            const sessionCookie = cookies.find(c => c.trim().startsWith('user_session='));
+            if (sessionCookie) {
+                try {
+                    const sessionData = JSON.parse(decodeURIComponent(sessionCookie.split('=')[1]));
+                    setUserName(sessionData.name || 'User');
+                } catch (e) {
+                    console.error('Error parsing session:', e);
+                }
+            }
+
+            // Fetch profile data
+            const profileRes = await fetch('/api/user/profile');
+            const data = await profileRes.json();
+
+            if (data && !data.error && Object.keys(data).length > 0) {
+                setFormData({
+                    fatherName: data.fatherName || '',
+                    motherName: data.motherName || '',
+                    fatherOccupation: data.fatherOccupation || '',
+                    motherOccupation: data.motherOccupation || '',
+                    dob: data.dob || '',
+                    education: data.education || '',
+                    address: data.address || ''
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -84,6 +121,27 @@ export default function DashboardPage() {
             setMessage('Error saving profile.');
         }
     };
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    }
+
+    if (accessDenied) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
+                    <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+                    <p className="text-gray-700 mb-6">All slots are closed now.</p>
+                    <button
+                        onClick={handleLogout}
+                        className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+                    >
+                        Logout
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
