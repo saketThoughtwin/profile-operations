@@ -27,13 +27,13 @@ export async function POST(request: Request) {
         }
 
         // Check if user already exists
-        const users = readExcel('users.xlsx');
+        const users = await readExcel('users.xlsx');
         if (users.find((u: any) => u.mobile === mobile)) {
             return NextResponse.json({ error: 'User already exists' }, { status: 400 });
         }
 
         // Check if Twilio is enabled
-        const twilioEnabledSetting = isTwilioEnabled();
+        const twilioEnabledSetting = await isTwilioEnabled();
 
         if (!twilioEnabledSetting) {
             // Direct registration without OTP
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
                 createdAt: new Date().toISOString()
             };
 
-            appendToExcel('users.xlsx', newUser);
+            await appendToExcel('users.xlsx', newUser);
 
             // Set session cookie for auto-login
             const cookieStore = await cookies();
@@ -93,12 +93,12 @@ export async function POST(request: Request) {
         }
 
         // Save to pending_registrations.xlsx (OTP is handled by Twilio now)
-        let pending = readExcel('pending_registrations.xlsx');
+        let pending = await readExcel('pending_registrations.xlsx');
         // Remove previous pending for this mobile
         pending = pending.filter((p: any) => p.mobile !== mobile);
 
         pending.push({ name, password, mobile, otp: 'PENDING_TWILIO', timestamp: Date.now() });
-        writeExcel('pending_registrations.xlsx', pending);
+        await writeExcel('pending_registrations.xlsx', pending);
 
         return NextResponse.json({
             message: 'OTP sent successfully',

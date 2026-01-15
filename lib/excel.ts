@@ -1,24 +1,45 @@
 import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
+import { uploadRawToCloudinary, getRawFromCloudinary } from './cloudinary';
 
 // In Vercel/AWS Lambda, only /tmp is writable
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const DATA_DIR = IS_PRODUCTION ? '/tmp' : process.cwd();
 const SOURCE_DIR = process.cwd(); // Where the initial files are located
 const SINGLE_FILE_NAME = 'data.xlsx'; // Single consolidated Excel file
+const CLOUDINARY_RAW_URL = process.env.CLOUDINARY_EXCEL_URL ||
+    (process.env.CLOUDINARY_CLOUD_NAME ? `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/excel_data/data_xlsx` : null);
 
 /**
- * Ensure the data file exists in the writable directory
+ * Ensure the data file exists in the writable directory and is synced with Cloudinary
  */
-const ensureDataFile = () => {
+let isSynced = false;
+
+export const ensureDataFile = async () => {
     const targetPath = path.join(DATA_DIR, SINGLE_FILE_NAME);
 
-    // If file doesn't exist in writable dir
+    // If already synced in this instance, skip
+    if (isSynced && fs.existsSync(targetPath)) return;
+
+    // 1. Try to sync from Cloudinary if URL is provided
+    if (CLOUDINARY_RAW_URL && !fs.existsSync(targetPath)) {
+        try {
+            console.log('Syncing data.xlsx from Cloudinary...');
+            const buffer = await getRawFromCloudinary(CLOUDINARY_RAW_URL);
+            fs.writeFileSync(targetPath, buffer);
+            isSynced = true;
+            console.log('Successfully synced from Cloudinary');
+            return;
+        } catch (error) {
+            console.error('Failed to sync from Cloudinary:', error);
+        }
+    }
+
+    // 2. Fallback to local source if file doesn't exist in writable dir
     if (!fs.existsSync(targetPath)) {
         const sourcePath = path.join(SOURCE_DIR, SINGLE_FILE_NAME);
 
-        // Try to copy from source if it exists
         if (fs.existsSync(sourcePath)) {
             try {
                 const data = fs.readFileSync(sourcePath);
@@ -26,13 +47,27 @@ const ensureDataFile = () => {
                 console.log(`Copied ${SINGLE_FILE_NAME} to ${targetPath}`);
             } catch (error) {
                 console.error(`Error copying ${SINGLE_FILE_NAME} to ${targetPath}:`, error);
-                // Create empty if copy fails
                 createEmptyWorkbook(targetPath);
             }
         } else {
-            // Create new if source doesn't exist
             createEmptyWorkbook(targetPath);
         }
+    }
+    isSynced = true;
+};
+
+const syncToCloudinary = async () => {
+    if (!IS_PRODUCTION) return; // Only sync to Cloudinary in production
+
+    try {
+        const filePath = path.join(DATA_DIR, SINGLE_FILE_NAME);
+        if (fs.existsSync(filePath)) {
+            const buffer = fs.readFileSync(filePath);
+            const url = await uploadRawToCloudinary(buffer, 'data_xlsx', 'excel_data');
+            console.log('Synced data.xlsx to Cloudinary:', url);
+        }
+    } catch (error) {
+        console.error('Failed to sync to Cloudinary:', error);
     }
 };
 
@@ -58,8 +93,8 @@ const addSerialNumbers = (data: any[]): any[] => {
  * @param fileName - Name of the Excel file (or legacy filename for backward compatibility)
  * @param sheetName - Name of the sheet (optional for legacy support)
  */
-export const readExcelSheet = (fileName: string, sheetName?: string): any[] => {
-    ensureDataFile();
+export const readExcelSheet = async (fileName: string, sheetName?: string): Promise<any[]> => {
+    await ensureDataFile();
 
     // Use single file for all operations
     const filePath = path.join(DATA_DIR, SINGLE_FILE_NAME);
@@ -94,8 +129,8 @@ export const readExcelSheet = (fileName: string, sheetName?: string): any[] => {
  * @param sheetName - Name of the sheet
  * @param data - Data to write
  */
-export const writeExcelSheet = (fileName: string, sheetName: string, data: any[]): void => {
-    ensureDataFile();
+export const writeExcelSheet = async (fileName: string, sheetName: string, data: any[]): Promise<void> => {
+    await ensureDataFile();
 
     // Always use single file
     const filePath = path.join(DATA_DIR, SINGLE_FILE_NAME);
@@ -125,6 +160,9 @@ export const writeExcelSheet = (fileName: string, sheetName: string, data: any[]
         const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         fs.writeFileSync(filePath, buffer);
         console.log(`Successfully wrote to ${filePath}`);
+
+        // Asynchronously sync to Cloudinary
+        syncToCloudinary();
     } catch (error) {
         console.error(`Error writing to ${filePath}:`, error);
         throw error;
@@ -134,8 +172,8 @@ export const writeExcelSheet = (fileName: string, sheetName: string, data: any[]
 /**
  * Get all sheet names from the consolidated Excel file
  */
-export const getAllSheets = (fileName?: string): string[] => {
-    ensureDataFile();
+export const getAllSheets = async (fileName?: string): Promise<string[]> => {
+    await ensureDataFile();
     const filePath = path.join(DATA_DIR, SINGLE_FILE_NAME);
     if (!fs.existsSync(filePath)) {
         return [];
@@ -156,10 +194,10 @@ export const getAllSheets = (fileName?: string): string[] => {
  * @param sheetName - Name of the sheet
  * @param newData - New data to append
  */
-export const appendToExcelSheet = (fileName: string, sheetName: string, newData: any): void => {
-    const currentData = readExcelSheet(SINGLE_FILE_NAME, sheetName);
+export const appendToExcelSheet = async (fileName: string, sheetName: string, newData: any): Promise<void> => {
+    const currentData = await readExcelSheet(SINGLE_FILE_NAME, sheetName);
     currentData.push(newData);
-    writeExcelSheet(SINGLE_FILE_NAME, sheetName, currentData);
+    await writeExcelSheet(SINGLE_FILE_NAME, sheetName, currentData);
 };
 
 /**
@@ -178,17 +216,38 @@ const getSheetNameFromFileName = (fileName: string): string => {
 };
 
 // Legacy functions for backward compatibility
-export const readExcel = (fileName: string) => {
+export const readExcel = async (fileName: string) => {
     const sheetName = getSheetNameFromFileName(fileName);
-    return readExcelSheet(SINGLE_FILE_NAME, sheetName);
+    return await readExcelSheet(SINGLE_FILE_NAME, sheetName);
 };
 
-export const writeExcel = (fileName: string, data: any[]) => {
+export const writeExcel = async (fileName: string, data: any[]) => {
     const sheetName = getSheetNameFromFileName(fileName);
-    writeExcelSheet(SINGLE_FILE_NAME, sheetName, data);
+    await writeExcelSheet(SINGLE_FILE_NAME, sheetName, data);
 };
 
-export const appendToExcel = (fileName: string, newData: any) => {
+export const appendToExcel = async (fileName: string, newData: any) => {
     const sheetName = getSheetNameFromFileName(fileName);
-    appendToExcelSheet(SINGLE_FILE_NAME, sheetName, newData);
+    await appendToExcelSheet(SINGLE_FILE_NAME, sheetName, newData);
+};
+
+export const updateOrAppendToExcel = async (fileName: string, newData: any, matchKey: string) => {
+    const sheetName = getSheetNameFromFileName(fileName);
+    const currentData = await readExcelSheet(SINGLE_FILE_NAME, sheetName);
+
+    const index = currentData.findIndex((item: any) => item[matchKey] === newData[matchKey]);
+
+    if (index !== -1) {
+        // Update existing
+        // Keep original createdAt if it exists
+        if (currentData[index].createdAt && !newData.createdAt) {
+            newData.createdAt = currentData[index].createdAt;
+        }
+        currentData[index] = { ...currentData[index], ...newData, updatedAt: new Date().toISOString() };
+    } else {
+        // Append new
+        currentData.push({ ...newData, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    }
+
+    await writeExcelSheet(SINGLE_FILE_NAME, sheetName, currentData);
 };

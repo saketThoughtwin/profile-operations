@@ -16,8 +16,8 @@ export async function GET(request: Request) {
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
 
-        const users = readExcel('users.xlsx');
-        let profiles = readExcel('profiles.xlsx');
+        const users = await readExcel('users.xlsx');
+        let profiles = await readExcel('profiles.xlsx');
 
         // Filter profiles by date range if provided
         if (startDate && endDate) {

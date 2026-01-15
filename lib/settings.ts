@@ -19,12 +19,12 @@ const DEFAULT_SETTINGS: Settings = {
 /**
  * Get current settings
  */
-export const getSettings = (): Settings => {
+export const getSettings = async (): Promise<Settings> => {
     try {
-        const data = readExcel(SETTINGS_FILE);
+        const data = await readExcel(SETTINGS_FILE);
         if (data.length === 0) {
             // Initialize with defaults
-            initializeSettings();
+            await initializeSettings();
             return DEFAULT_SETTINGS;
         }
 
@@ -53,8 +53,8 @@ export const getSettings = (): Settings => {
 /**
  * Update settings
  */
-export const updateSettings = (settings: Partial<Settings>): void => {
-    const currentSettings = getSettings();
+export const updateSettings = async (settings: Partial<Settings>): Promise<void> => {
+    const currentSettings = await getSettings();
     const newSettings = { ...currentSettings, ...settings };
 
     // Convert to array of key-value pairs
@@ -69,17 +69,18 @@ export const updateSettings = (settings: Partial<Settings>): void => {
 /**
  * Initialize settings file with defaults
  */
-const initializeSettings = (): void => {
+const initializeSettings = async (): Promise<void> => {
     const data = Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({
         key,
         value: String(value),
     }));
-    writeExcel(SETTINGS_FILE, data);
+    await writeExcel(SETTINGS_FILE, data);
 };
 
 /**
  * Check if Twilio is enabled
  */
-export const isTwilioEnabled = (): boolean => {
-    return getSettings().twilioEnabled;
+export const isTwilioEnabled = async (): Promise<boolean> => {
+    const settings = await getSettings();
+    return settings.twilioEnabled;
 };

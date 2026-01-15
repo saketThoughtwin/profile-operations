@@ -9,7 +9,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const settings = getSettings();
+        const settings = await getSettings();
         return NextResponse.json(settings);
     } catch (error) {
         console.error(error);
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         }
 
         try {
-            updateSettings(updates);
+            await updateSettings(updates);
             return NextResponse.json({ message: 'Settings updated successfully' });
         } catch (err: any) {
             console.error('Failed to save settings:', err);

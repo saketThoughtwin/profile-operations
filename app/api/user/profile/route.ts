@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { appendToExcel, readExcel } from "@/lib/excel";
+import { updateOrAppendToExcel, readExcel } from "@/lib/excel";
 import { cookies } from "next/headers";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -47,13 +47,11 @@ export async function POST(request: Request) {
       motherOccupation: formData.get("motherOccupation"),
       dob: formData.get("dob"),
       education: formData.get("education"),
-      address: formData.get("address"), // New field
+      address: formData.get("address"),
       picture: picturePath,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    appendToExcel("profiles.xlsx", profileData);
+    await updateOrAppendToExcel("profiles.xlsx", profileData, "mobile");
 
     return NextResponse.json({ message: "Profile saved successfully" });
   } catch (error) {
@@ -73,7 +71,7 @@ export async function GET(request: Request) {
     }
     const session = JSON.parse(sessionCookie.value);
 
-    const profiles = readExcel('profiles.xlsx');
+    const profiles = await readExcel('profiles.xlsx');
     // Find profile by mobile (assuming mobile is unique identifier linking user and profile)
     const profile = profiles.find((p: any) => p.mobile === session.mobile);
 

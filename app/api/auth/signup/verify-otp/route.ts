@@ -33,7 +33,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Twilio credentials missing' }, { status: 500 });
         }
 
-        const pending = readExcel('pending_registrations.xlsx');
+        const pending = await readExcel('pending_registrations.xlsx');
         // Find by mobile only, since OTP is not stored
         const registrationIndex = pending.findIndex((p: any) => p.mobile === mobile);
 
@@ -51,11 +51,11 @@ export async function POST(request: Request) {
             createdAt: new Date().toISOString()
         };
 
-        appendToExcel('users.xlsx', newUser);
+        await appendToExcel('users.xlsx', newUser);
 
         // Remove from pending
         pending.splice(registrationIndex, 1);
-        writeExcel('pending_registrations.xlsx', pending);
+        await writeExcel('pending_registrations.xlsx', pending);
 
         // Set session cookie for auto-login
         const cookieStore = await cookies();
