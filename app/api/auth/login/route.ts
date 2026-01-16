@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         const inputMobile = normalizeMobile(mobile);
 
         // 1. Check Admin Credentials
-        const admins = readExcel('admins.xlsx');
+        const admins = await readExcel('admins.xlsx');
         const admin = admins.find((a: any) => normalizeMobile(a.mobile) === inputMobile && a.password === password);
 
         if (admin) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
         }
 
         // 2. Check User Credentials
-        const users = readExcel('users.xlsx');
+        const users = await readExcel('users.xlsx');
         const user = users.find((u: any) => normalizeMobile(u.mobile) === inputMobile && u.password === password);
 
         if (!user) {
