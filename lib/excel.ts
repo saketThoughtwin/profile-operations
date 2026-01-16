@@ -57,7 +57,10 @@ export const ensureDataFile = async () => {
 };
 
 const syncToCloudinary = async () => {
-    if (!IS_PRODUCTION) return; // Only sync to Cloudinary in production
+    // Sync if Cloudinary credentials are present
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+        return;
+    }
 
     try {
         const filePath = path.join(DATA_DIR, SINGLE_FILE_NAME);
@@ -161,8 +164,8 @@ export const writeExcelSheet = async (fileName: string, sheetName: string, data:
         fs.writeFileSync(filePath, buffer);
         console.log(`Successfully wrote to ${filePath}`);
 
-        // Asynchronously sync to Cloudinary
-        syncToCloudinary();
+        // Await sync to Cloudinary to ensure it completes in serverless environments
+        await syncToCloudinary();
     } catch (error) {
         console.error(`Error writing to ${filePath}:`, error);
         throw error;
