@@ -192,7 +192,14 @@ export default function AdminPage() {
 
                 {/* Profiles Table */}
                 <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-xl font-bold mb-4">User Profiles</h2>
+                    <div className='flex justify-between items-center mb-8'><h2 className="text-xl font-bold mb-4">User Profiles</h2>
+                     <button
+                    onClick={() => generateProfilesPdf(data.profiles)}
+                    className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+                >
+                    Generate PDF
+                </button>
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
@@ -234,14 +241,6 @@ export default function AdminPage() {
                         </table>
                     </div>
                 </div>
-            </div>
-            <div className="flex justify-end mt-6">
-                <button
-                    onClick={() => generateProfilesPdf(data.profiles)}
-                    className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition"
-                >
-                    Generate PDF
-                </button>
             </div>
 
         </div>

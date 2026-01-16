@@ -47,7 +47,7 @@ export default function DashboardPage() {
                 }
             })
             .catch(console.error);
-    }, []);
+    }, [formData]);
 
     const handleLogout = async () => {
         try {

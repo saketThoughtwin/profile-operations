@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
 import { imageUrlToBase64 } from "./imageToBase64";
-import border from "../public/uploads/border4.jpg";
+import border from "../public/uploads/border6.png";
 export interface ProfileData {
     mobile: string;
     fatherName: string;
@@ -33,7 +33,7 @@ export interface ProfileData {
       img.src = url;
     });
   };
-const drawAadhaarCard = async (
+const drawCard = async (
   doc: jsPDF,
   startX: number,
   startY: number,
@@ -132,7 +132,7 @@ const startY = margin;
   const isLeft = index % 2 === 0;
   const startX = isLeft ? xLeft : xRight;
 
-  await drawAadhaarCard(
+  await drawCard(
     doc,
     startX,     // X FIRST
     startY,     // Y SECOND
