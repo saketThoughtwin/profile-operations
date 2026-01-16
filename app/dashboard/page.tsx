@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import ReactCrop, { centerCrop, makeAspectCrop, Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 
 export default function DashboardPage() {
     const router = useRouter();
@@ -10,6 +12,7 @@ export default function DashboardPage() {
     const [accessDenied, setAccessDenied] = useState(false);
     const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState({
+        fullName: '',
         fatherName: '',
         motherName: '',
         fatherOccupation: '',
@@ -18,6 +21,17 @@ export default function DashboardPage() {
         education: '',
         address: ''
     });
+    const [existingPicture, setExistingPicture] = useState<string | null>(null);
+
+    // Cropping state
+    const [imgSrc, setImgSrc] = useState('');
+    const imgRef = useRef<HTMLImageElement>(null);
+    const [crop, setCrop] = useState<Crop>();
+    const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [croppedFile, setCroppedFile] = useState<File | null>(null);
+
+    const ASPECT_RATIO = 35 / 45; // 35mm * 45mm
 
     useEffect(() => {
         checkAccessAndFetchData();
@@ -55,16 +69,17 @@ export default function DashboardPage() {
                 }
             }
 
-            // Get user name from cookie
-            const cookies = document.cookie.split(';');
-            const sessionCookie = cookies.find(c => c.trim().startsWith('user_session='));
-            if (sessionCookie) {
-                try {
-                    const sessionData = JSON.parse(decodeURIComponent(sessionCookie.split('=')[1]));
-                    setUserName(sessionData.name || 'User');
-                } catch (e) {
-                    console.error('Error parsing session:', e);
+            // Get user name from API
+            let sessionName = 'User';
+            try {
+                const meRes = await fetch('/api/auth/me');
+                if (meRes.ok) {
+                    const meData = await meRes.json();
+                    sessionName = meData.name || 'User';
+                    setUserName(sessionName);
                 }
+            } catch (e) {
+                console.error('Error fetching session:', e);
             }
 
             // Fetch profile data
@@ -73,6 +88,7 @@ export default function DashboardPage() {
 
             if (data && !data.error && Object.keys(data).length > 0) {
                 setFormData({
+                    fullName: data.fullName || sessionName,
                     fatherName: data.fatherName || '',
                     motherName: data.motherName || '',
                     fatherOccupation: data.fatherOccupation || '',
@@ -81,6 +97,12 @@ export default function DashboardPage() {
                     education: data.education || '',
                     address: data.address || ''
                 });
+                if (data.picture) {
+                    setExistingPicture(data.picture);
+                }
+            } else {
+                // Pre-fill with session name if no profile exists yet
+                setFormData(prev => ({ ...prev, fullName: sessionName }));
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -103,6 +125,76 @@ export default function DashboardPage() {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setCrop(undefined); // Reset crop
+            const reader = new FileReader();
+            reader.addEventListener('load', () => setImgSrc(reader.result?.toString() || ''));
+            reader.readAsDataURL(e.target.files[0]);
+            setShowCropModal(true);
+        }
+    };
+
+    const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        const { width, height } = e.currentTarget;
+        const initialCrop = centerCrop(
+            makeAspectCrop(
+                {
+                    unit: '%',
+                    width: 90,
+                },
+                ASPECT_RATIO,
+                width,
+                height
+            ),
+            width,
+            height
+        );
+        setCrop(initialCrop);
+    };
+
+    const getCroppedImg = async () => {
+        if (!imgRef.current || !completedCrop) return;
+
+        const canvas = document.createElement('canvas');
+        const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+        const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+        canvas.width = completedCrop.width;
+        canvas.height = completedCrop.height;
+        const ctx = canvas.getContext('2d');
+
+        if (ctx) {
+            ctx.drawImage(
+                imgRef.current,
+                completedCrop.x * scaleX,
+                completedCrop.y * scaleY,
+                completedCrop.width * scaleX,
+                completedCrop.height * scaleY,
+                0,
+                0,
+                completedCrop.width,
+                completedCrop.height
+            );
+
+            return new Promise<File>((resolve) => {
+                canvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const file = new File([blob], 'cropped_image.jpg', { type: 'image/jpeg' });
+                    resolve(file);
+                }, 'image/jpeg');
+            });
+        }
+    };
+
+    const handleCropComplete = async () => {
+        const file = await getCroppedImg();
+        if (file) {
+            setCroppedFile(file);
+            setShowCropModal(false);
+            toast.success('Image cropped successfully!');
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -118,6 +210,15 @@ export default function DashboardPage() {
             return;
         }
 
+        // Use cropped file if available
+        if (croppedFile) {
+            submitData.set('picture', croppedFile);
+        } else if (existingPicture) {
+            // If no new file but existing picture, we don't need to re-upload
+            // But the API expects a file if it's a required field in some logic
+            // Let's check the API.
+        }
+
         try {
             const res = await fetch('/api/user/profile', {
                 method: 'POST',
@@ -126,17 +227,9 @@ export default function DashboardPage() {
 
             if (res.ok) {
                 toast.success('Profile saved successfully!');
-                // Reset form
-                setFormData({
-                    fatherName: '',
-                    motherName: '',
-                    fatherOccupation: '',
-                    motherOccupation: '',
-                    dob: '',
-                    education: '',
-                    address: ''
-                });
-                form.reset();
+                // Refresh data to show new image
+                checkAccessAndFetchData();
+                setCroppedFile(null);
             } else {
                 const data = await res.json();
                 toast.error(data.error || 'Failed to save profile.');
@@ -179,6 +272,18 @@ export default function DashboardPage() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-900">Full Name</label>
+                        <input
+                            name="fullName"
+                            type="text"
+                            value={formData.fullName}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
+                        />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-900">Father's Name</label>
@@ -226,17 +331,48 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-900">Date of Birth</label>
-                        <input
-                            name="dob"
-                            type="date"
-                            value={formData.dob}
-                            onChange={handleChange}
-                            required
-                            max={`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
-                            className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900">Date of Birth</label>
+                            <input
+                                name="dob"
+                                type="date"
+                                value={formData.dob}
+                                onChange={handleChange}
+                                required
+                                max={`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
+                                className="mt-1 block w-full border-2 border-black p-2 rounded text-gray-900"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-1">Picture</label>
+                            <div className="flex items-center gap-2">
+                                <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block text-sm">
+                                    Upload Picture
+                                    <input
+                                        name="picture"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={onSelectFile}
+                                        className="hidden"
+                                    />
+                                </label>
+                                {croppedFile && (
+                                    <span className="text-xs text-green-600 font-medium truncate max-w-[100px]">
+                                        Cropped: {croppedFile.name}
+                                    </span>
+                                )}
+                                {!croppedFile && existingPicture && (
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs text-gray-500 font-medium">Existing:</span>
+                                        <a href={existingPicture} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate max-w-[80px]">
+                                            View Image
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -264,25 +400,52 @@ export default function DashboardPage() {
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-900 mb-1">Picture</label>
-                        <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block">
-                            Upload Picture
-                            <input
-                                name="picture"
-                                type="file"
-                                accept="image/*"
-                                required
-                                className="hidden"
-                            />
-                        </label>
-                    </div>
-
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
                         Save Profile
                     </button>
                 </form>
             </div>
+
+            {/* Crop Modal */}
+            {showCropModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+                        <h2 className="text-xl font-bold mb-4 text-black">Crop Your Picture (35x45mm)</h2>
+                        <div className="max-h-[60vh] overflow-auto mb-4 flex justify-center bg-gray-100 rounded">
+                            {imgSrc && (
+                                <ReactCrop
+                                    crop={crop}
+                                    onChange={(c) => setCrop(c)}
+                                    onComplete={(c) => setCompletedCrop(c)}
+                                    aspect={ASPECT_RATIO}
+                                >
+                                    <img
+                                        ref={imgRef}
+                                        src={imgSrc}
+                                        alt="Crop me"
+                                        onLoad={onImageLoad}
+                                        className="max-w-full"
+                                    />
+                                </ReactCrop>
+                            )}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setShowCropModal(false)}
+                                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCropComplete}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Crop & Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

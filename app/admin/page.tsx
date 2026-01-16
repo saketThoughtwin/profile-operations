@@ -1,35 +1,36 @@
 'use client';
 
-import { generateProfilesPdf } from '@/lib/generateProfilesPdf';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 
 export default function AdminPage() {
-    const [data, setData] = useState<{ users: any[], profiles: any[] }>({ users: [], profiles: [] });
     const [twilioEnabled, setTwilioEnabled] = useState(false);
     const [registrationOpen, setRegistrationOpen] = useState(true);
     const [registrationStartDate, setRegistrationStartDate] = useState('');
     const [registrationEndDate, setRegistrationEndDate] = useState('');
+
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [activeTab, setActiveTab] = useState<'registered_users' | 'user_profiles'>('registered_users');
+    const [showFilter, setShowFilter] = useState(false);
+    const filterRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetchData();
         fetchSettings();
-    }, [activeTab]);
+        fetchUsers();
+    }, []);
 
-    const fetchData = (start?: string, end?: string) => {
-        let url = '/api/admin/data';
-        if (start && end) {
-            url += `?startDate=${start}&endDate=${end}`;
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+                setShowFilter(false);
+            }
         }
-
-        fetch(url)
-            .then(res => res.json())
-            .then(setData)
-            .catch(console.error);
-    };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const fetchSettings = () => {
         fetch('/api/admin/settings')
@@ -41,6 +42,26 @@ export default function AdminPage() {
                 setRegistrationEndDate(settings.registrationEndDate || '');
             })
             .catch(console.error);
+    };
+
+    const fetchUsers = (params?: { start?: string, end?: string, search?: string }) => {
+        setLoading(true);
+        const queryParams = new URLSearchParams();
+        if (params?.start) queryParams.append('startDate', params.start);
+        else if (startDate) queryParams.append('startDate', startDate);
+        if (params?.end) queryParams.append('endDate', params.end);
+        else if (endDate) queryParams.append('endDate', endDate);
+        if (params?.search !== undefined) {
+            if (params.search) queryParams.append('search', params.search);
+        } else if (search) {
+            queryParams.append('search', search);
+        }
+
+        fetch('/api/admin/data?' + queryParams.toString())
+            .then(res => res.json())
+            .then(data => setUsers(data.users))
+            .catch(console.error)
+            .finally(() => setLoading(false));
     };
 
     const updateSetting = async (key: string, value: any) => {
@@ -69,283 +90,192 @@ export default function AdminPage() {
         }
     };
 
-    const handleDateFilter = () => {
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        fetchUsers({ search });
+    };
+
+    const handleApplyFilter = () => {
         if (startDate && endDate) {
-            fetchData(startDate, endDate);
+            fetchUsers({ start: startDate, end: endDate });
+            setShowFilter(false);
         } else {
             toast.error('Please select both start and end dates');
         }
     };
 
-    const clearDateFilter = () => {
+    const clearFilter = () => {
         setStartDate('');
         setEndDate('');
-        fetchData();
-    };
-
-    const handleLogout = async () => {
-        try {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/login';
-        } catch (error) {
-            console.error('Logout failed:', error);
-            window.location.href = '/login'; // Fallback
-        }
+        fetchUsers({ start: '', end: '' });
+        setShowFilter(false);
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex text-black">
-            {/* Sidebar */}
-            <div className="w-64 bg-white shadow-md flex flex-col">
-                <div className="p-6 border-b">
-                    <h1 className="text-2xl font-bold text-gray-800">Admin Panel</h1>
+        <div className="max-w-6xl mx-auto space-y-8 text-black">
+            <h1 className="text-3xl font-bold text-gray-800">Admin Dashboard</h1>
+
+            {/* Settings Section */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 className="text-xl font-bold mb-4">Settings</h2>
+
+                {/* Twilio Toggle */}
+                <div className="flex items-center gap-4 mb-6">
+                    <label className="flex items-center cursor-pointer">
+                        <span className="mr-3 text-gray-700 font-medium">Twilio OTP Verification</span>
+                        <div className="relative">
+                            <input
+                                type="checkbox"
+                                checked={twilioEnabled}
+                                onChange={(e) => updateSetting('twilioEnabled', e.target.checked)}
+                                className="sr-only"
+                            />
+                            <div className={`block w-14 h-8 rounded-full transition ${twilioEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${twilioEnabled ? 'transform translate-x-6' : ''}`}></div>
+                        </div>
+                    </label>
+                    <span className={`text-sm ${twilioEnabled ? 'text-green-600' : 'text-red-600'}`}>
+                        {twilioEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
                 </div>
-                <nav className="flex-1 p-4">
-                    <ul className="space-y-2">
-                        <li>
-                            <button
-                                onClick={() => setActiveTab('registered_users')}
-                                className={`w-full text-left px-4 py-2 rounded transition ${activeTab === 'registered_users'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-700 hover:bg-gray-100'
-                                    }`}
-                            >
-                                Registered Users
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                onClick={() => setActiveTab('user_profiles')}
-                                className={`w-full text-left px-4 py-2 rounded transition ${activeTab === 'user_profiles'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-700 hover:bg-gray-100'
-                                    }`}
-                            >
-                                User Profiles
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
-                <div className="p-4 border-t">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition"
-                    >
-                        Logout
-                    </button>
-                </div>
-            </div>
 
-            {/* Main Content */}
-            <div className="flex-1 p-8 overflow-y-auto">
-
-                {/* Settings Section */}
-                <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                    <h2 className="text-xl font-bold mb-4">Settings</h2>
-
-                    {/* Twilio Toggle */}
-                    <div className="flex items-center gap-4 mb-6">
+                {/* Registration Slot Configuration */}
+                <div className="border-t pt-4">
+                    <h3 className="text-lg font-semibold mb-3">Registration Slot Control</h3>
+                    <div className="flex items-center gap-4 mb-4">
                         <label className="flex items-center cursor-pointer">
-                            <span className="mr-3 text-gray-700 font-medium">Twilio OTP Verification</span>
+                            <span className="mr-3 text-gray-700 font-medium">Registration Open</span>
                             <div className="relative">
                                 <input
                                     type="checkbox"
-                                    checked={twilioEnabled}
-                                    onChange={(e) => updateSetting('twilioEnabled', e.target.checked)}
+                                    checked={registrationOpen}
+                                    onChange={(e) => updateSetting('registrationOpen', e.target.checked)}
                                     className="sr-only"
                                 />
-                                <div className={`block w-14 h-8 rounded-full transition ${twilioEnabled ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${twilioEnabled ? 'transform translate-x-6' : ''}`}></div>
+                                <div className={`block w-14 h-8 rounded-full transition ${registrationOpen ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${registrationOpen ? 'transform translate-x-6' : ''}`}></div>
                             </div>
                         </label>
-                        <span className={`text-sm ${twilioEnabled ? 'text-green-600' : 'text-red-600'}`}>
-                            {twilioEnabled ? 'Enabled' : 'Disabled'}
+                        <span className={`text-sm ${registrationOpen ? 'text-green-600' : 'text-red-600'}`}>
+                            {registrationOpen ? 'Open' : 'Closed'}
                         </span>
                     </div>
 
-                    {/* Registration Slot Configuration */}
-                    <div className="border-t pt-4">
-                        <h3 className="text-lg font-semibold mb-3">Registration Slot Control</h3>
-                        <div className="flex items-center gap-4 mb-4">
-                            <label className="flex items-center cursor-pointer">
-                                <span className="mr-3 text-gray-700 font-medium">Registration Open</span>
-                                <div className="relative">
-                                    <input
-                                        type="checkbox"
-                                        checked={registrationOpen}
-                                        onChange={(e) => updateSetting('registrationOpen', e.target.checked)}
-                                        className="sr-only"
-                                    />
-                                    <div className={`block w-14 h-8 rounded-full transition ${registrationOpen ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition ${registrationOpen ? 'transform translate-x-6' : ''}`}></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Registration Start Date</label>
+                            <input
+                                type="date"
+                                value={registrationStartDate}
+                                onChange={(e) => updateSetting('registrationStartDate', e.target.value)}
+                                className="border-2 border-black rounded px-3 py-2 w-full"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Registration End Date</label>
+                            <input
+                                type="date"
+                                value={registrationEndDate}
+                                onChange={(e) => updateSetting('registrationEndDate', e.target.value)}
+                                className="border-2 border-black rounded px-3 py-2 w-full"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Registered Users Section */}
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-gray-800">Registered Users</h2>
+
+                    <div className="flex items-center gap-4">
+                        {/* Search Bar */}
+                        <form onSubmit={handleSearch} className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search by name or mobile..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 outline-none w-64 transition-all"
+                            />
+                            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </form>
+
+                        {/* Filter Icon */}
+                        <div className="relative" ref={filterRef}>
+                            <button
+                                onClick={() => setShowFilter(!showFilter)}
+                                className={`p-2 rounded-lg border-2 transition-all ${showFilter || startDate ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'}`}
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                </svg>
+                            </button>
+
+                            {showFilter && (
+                                <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-50">
+                                    <h3 className="font-semibold text-gray-800 mb-4">Filter by Date</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Start Date</label>
+                                            <input
+                                                type="date"
+                                                value={startDate}
+                                                onChange={(e) => setStartDate(e.target.value)}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 uppercase mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                value={endDate}
+                                                onChange={(e) => setEndDate(e.target.value)}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            />
+                                        </div>
+                                        <div className="flex gap-2 pt-2">
+                                            <button onClick={handleApplyFilter} className="flex-1 bg-blue-600 text-white py-2 rounded-md text-sm font-medium hover:bg-blue-700">Apply</button>
+                                            <button onClick={clearFilter} className="flex-1 bg-gray-100 text-gray-600 py-2 rounded-md text-sm font-medium hover:bg-gray-200">Clear</button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </label>
-                            <span className={`text-sm ${registrationOpen ? 'text-green-600' : 'text-red-600'}`}>
-                                {registrationOpen ? 'Open' : 'Closed'}
-                            </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Registration Start Date</label>
-                                <input
-                                    type="date"
-                                    value={registrationStartDate}
-                                    onChange={(e) => updateSetting('registrationStartDate', e.target.value)}
-                                    className="border-2 border-black rounded px-3 py-2 w-full"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Registration End Date</label>
-                                <input
-                                    type="date"
-                                    value={registrationEndDate}
-                                    onChange={(e) => updateSetting('registrationEndDate', e.target.value)}
-                                    className="border-2 border-black rounded px-3 py-2 w-full"
-                                />
-                            </div>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-2">
-                            Users can only access the form if "Registration Open" is enabled AND the current date is within the specified range.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Date Filter Section */}
-                <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                    <h2 className="text-xl font-bold mb-4">Filter Data by Date</h2>
-                    <div className="flex items-center gap-4 flex-wrap">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="border-2 border-black rounded px-3 py-2"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="border-2 border-black rounded px-3 py-2"
-                            />
-                        </div>
-                        <div className="flex gap-2 mt-6">
-                            <button
-                                onClick={handleDateFilter}
-                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                            >
-                                Apply Filter
-                            </button>
-                            <button
-                                onClick={clearDateFilter}
-                                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                            >
-                                Clear
-                            </button>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Content based on active tab */}
-                {activeTab === 'registered_users' && (
-                    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-
-                        <h2 className="text-xl font-bold mb-4">Registered Users</h2>
-
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {data.users.length > 0 ? (
-                                        data.users.map((user, idx) => (
-                                            <tr key={idx}>
-                                                <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{user.mobile}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{user.createdAt}</td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={3} className="px-6 py-4 text-center text-gray-500">No users found</td>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {loading ? (
+                                    <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-500">Loading...</td></tr>
+                                ) : users.length > 0 ? (
+                                    users.map((user, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50 transition">
+                                            <td className="px-6 py-4 whitespace-nowrap font-medium">{user.name}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{user.mobile}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-gray-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-500">No users found</td></tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-                )}
-
-                {activeTab === 'user_profiles' && (
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold mb-4">User Profiles</h2>
-                            <button
-                                onClick={() => generateProfilesPdf(data.profiles)}
-
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                            >
-                                Generate PDF
-                            </button>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mother's Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Father's Occupation</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mother's Occupation</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DOB</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Education</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Picture</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {data.profiles.length > 0 ? (
-                                        data.profiles.map((profile, idx) => (
-                                            <tr key={idx}>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.mobile}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.fatherName}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.motherName}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.fatherOccupation}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.motherOccupation}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.dob}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">{profile.education}</td>
-                                                <td className="px-6 py-4 max-w-xs truncate" title={profile.address}>{profile.address}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    {profile.picture && (
-                                                        <a href={profile.picture} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Image</a>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={10} className="px-6 py-4 text-center text-gray-500">No profiles found</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
 
         </div>

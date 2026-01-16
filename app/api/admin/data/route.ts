@@ -11,13 +11,25 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Parse query parameters for date filtering
+        // Parse query parameters for filtering and search
         const { searchParams } = new URL(request.url);
         const startDate = searchParams.get('startDate');
         const endDate = searchParams.get('endDate');
+        const search = searchParams.get('search')?.toLowerCase();
 
-        const users = await readExcel('users.xlsx');
+        let users = await readExcel('users.xlsx');
         let profiles = await readExcel('profiles.xlsx');
+
+        // Filter by search query (name or mobile)
+        if (search) {
+            users = users.filter((user: any) =>
+                user.name?.toLowerCase().includes(search) ||
+                user.mobile?.toString().includes(search)
+            );
+            profiles = profiles.filter((profile: any) =>
+                profile.mobile?.toString().includes(search)
+            );
+        }
 
         // Filter profiles by date range if provided
         if (startDate && endDate) {

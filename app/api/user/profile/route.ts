@@ -15,13 +15,9 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("picture");
 
-    if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Image is required" }, { status: 400 });
-    }
-
     let picturePath = "";
 
-    if (file) {
+    if (file && file instanceof File && file.size > 0) {
       try {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
@@ -39,8 +35,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const profileData = {
+    const profileData: any = {
       mobile: session.mobile, // Link to user
+      fullName: formData.get("fullName"),
       fatherName: formData.get("fatherName"),
       motherName: formData.get("motherName"),
       fatherOccupation: formData.get("fatherOccupation"),
@@ -48,8 +45,11 @@ export async function POST(request: Request) {
       dob: formData.get("dob"),
       education: formData.get("education"),
       address: formData.get("address"),
-      picture: picturePath,
     };
+
+    if (picturePath) {
+      profileData.picture = picturePath;
+    }
 
     await updateOrAppendToExcel("profiles.xlsx", profileData, "mobile");
 
