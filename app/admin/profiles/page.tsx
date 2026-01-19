@@ -200,8 +200,17 @@ export default function ProfilesPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">{profile.dob}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">{profile.education}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {profile.picture && (
-                                                <a href={profile.picture} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View</a>
+                                            {profile.picture ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-10 h-12 border rounded overflow-hidden bg-gray-50">
+                                                        <img src={profile.picture} alt="Profile" className="w-full h-full object-cover" />
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 truncate max-w-[60px]" title={profile.picture.split('/').pop()}>
+                                                        {profile.picture.split('/').pop()}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400 text-xs">No Image</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">{profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</td>

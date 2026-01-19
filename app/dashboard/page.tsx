@@ -347,28 +347,29 @@ export default function DashboardPage() {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-900 mb-1">Picture</label>
-                            <div className="flex items-center gap-2">
-                                <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block text-sm">
-                                    Upload Picture
-                                    <input
-                                        name="picture"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={onSelectFile}
-                                        className="hidden"
-                                    />
-                                </label>
-                                {croppedFile && (
-                                    <span className="text-xs text-green-600 font-medium truncate max-w-[100px]">
-                                        Cropped: {croppedFile.name}
-                                    </span>
-                                )}
-                                {!croppedFile && existingPicture && (
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-xs text-gray-500 font-medium">Existing:</span>
-                                        <a href={existingPicture} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate max-w-[80px]">
-                                            View Image
-                                        </a>
+                            <div className="flex items-start gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 inline-block text-sm transition-colors">
+                                        Upload Picture
+                                        <input
+                                            name="picture"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={onSelectFile}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </div>
+
+                                {/* Image Preview */}
+                                {(croppedFile || existingPicture) && (
+                                    <div className="relative w-12 h-12 border-2 border-gray-200 rounded overflow-hidden bg-gray-50 shadow-sm">
+                                        <img
+                                            src={croppedFile ? URL.createObjectURL(croppedFile) : existingPicture!}
+                                            alt="Profile Preview"
+                                            className="w-full h-full object-cover"
+                                        />
+            
                                     </div>
                                 )}
                             </div>
@@ -400,7 +401,7 @@ export default function DashboardPage() {
                         />
                     </div>
 
-                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition-colors font-semibold">
                         Save Profile
                     </button>
                 </form>
@@ -408,40 +409,64 @@ export default function DashboardPage() {
 
             {/* Crop Modal */}
             {showCropModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
-                        <h2 className="text-xl font-bold mb-4 text-black">Crop Your Picture (35x45mm)</h2>
-                        <div className="max-h-[60vh] overflow-auto mb-4 flex justify-center bg-gray-100 rounded">
-                            {imgSrc && (
-                                <ReactCrop
-                                    crop={crop}
-                                    onChange={(c) => setCrop(c)}
-                                    onComplete={(c) => setCompletedCrop(c)}
-                                    aspect={ASPECT_RATIO}
-                                >
-                                    <img
-                                        ref={imgRef}
-                                        src={imgSrc}
-                                        alt="Crop me"
-                                        onLoad={onImageLoad}
-                                        className="max-w-full"
-                                    />
-                                </ReactCrop>
-                            )}
-                        </div>
-                        <div className="flex justify-end gap-2">
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+                        <div className="p-6 border-b flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-gray-800">Crop Passport Size Photo</h2>
                             <button
                                 onClick={() => setShowCropModal(false)}
-                                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
                             >
-                                Cancel
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                             </button>
-                            <button
-                                onClick={handleCropComplete}
-                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            >
-                                Crop & Save
-                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                <p className="font-medium text-blue-800 mb-1">Instructions:</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                    <li>Drag the corners to resize the crop area</li>
+                                    <li>Click and drag inside the box to move it</li>
+                                    <li>Aspect ratio is fixed to 35mm x 45mm (Passport Size)</li>
+                                </ul>
+                            </div>
+
+                            <div className="max-h-[50vh] overflow-auto mb-6 flex justify-center bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 p-2">
+                                {imgSrc && (
+                                    <ReactCrop
+                                        crop={crop}
+                                        onChange={(c) => setCrop(c)}
+                                        onComplete={(c) => setCompletedCrop(c)}
+                                        aspect={ASPECT_RATIO}
+                                        className="max-w-full"
+                                    >
+                                        <img
+                                            ref={imgRef}
+                                            src={imgSrc}
+                                            alt="Crop me"
+                                            onLoad={onImageLoad}
+                                            className="max-w-full block"
+                                        />
+                                    </ReactCrop>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowCropModal(false)}
+                                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCropComplete}
+                                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-sm"
+                                >
+                                    Apply Crop
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

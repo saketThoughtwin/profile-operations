@@ -63,7 +63,7 @@ export const updateSettings = async (settings: Partial<Settings>): Promise<void>
         value: String(value),
     }));
 
-    writeExcel(SETTINGS_FILE, data);
+    await writeExcel(SETTINGS_FILE, data);
 };
 
 /**
